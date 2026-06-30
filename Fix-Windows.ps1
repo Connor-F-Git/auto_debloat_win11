@@ -1,11 +1,12 @@
 $ErrorActionPreference = "Continue"
 
-# --- 1. Bulletproof Git Installation (Bypassing Winget) ---
+# --- 1. Bulletproof Git Installation (With Progress Bar) ---
 $GitExePath = "C:\Program Files\Git\cmd\git.exe"
 
 if (-not (Get-Command "git" -ErrorAction SilentlyContinue) -and -not (Test-Path $GitExePath)) {
     Write-Host "Git is missing. Downloading the standalone installer..." -ForegroundColor Yellow
     
+    # We keep this silent to ensure the download doesn't throttle your internet speed
     $OriginalProgress = $ProgressPreference
     $ProgressPreference = 'SilentlyContinue'
     
@@ -16,12 +17,13 @@ if (-not (Get-Command "git" -ErrorAction SilentlyContinue) -and -not (Test-Path 
         $GitDownloadUrl = ($GitRelease.assets | Where-Object { $_.name -match "Git-.*-64-bit\.exe" }).browser_download_url
         
         $GitInstallerTemp = Join-Path $env:TEMP "GitInstaller.exe"
-        Write-Host "Downloading Git..." -ForegroundColor Cyan
+        Write-Host "Downloading Git... (This usually takes 5-10 seconds)" -ForegroundColor Cyan
         Invoke-WebRequest -Uri $GitDownloadUrl -OutFile $GitInstallerTemp -UseBasicParsing
         
-        Write-Host "Installing Git silently. This will take a moment..." -ForegroundColor Cyan
-        # /VERYSILENT handles the install in the background. /NORESTART guarantees it won't reboot your PC.
-        Start-Process -FilePath $GitInstallerTemp -ArgumentList "/VERYSILENT /NORESTART /NOCANCEL /SP- /SUPPRESSMSGBOXES" -Wait -NoNewWindow
+        Write-Host "Installing Git. A progress window should appear..." -ForegroundColor Cyan
+        
+        # CHANGED: Replaced /VERYSILENT with /SILENT so the progress bar is visible
+        Start-Process -FilePath $GitInstallerTemp -ArgumentList "/SILENT /NORESTART /NOCANCEL /SP- /SUPPRESSMSGBOXES" -Wait -NoNewWindow
         
         Remove-Item -Path $GitInstallerTemp -Force
     } catch {
