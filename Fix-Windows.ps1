@@ -1,5 +1,51 @@
 $ErrorActionPreference = "Continue" # Allows us to handle Git errors gracefully instead of hard-crashing
 
+# --- 0. Winget Installation Check ---
+Write-Host "Checking for winget..." -ForegroundColor Cyan
+if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
+    Write-Host "winget is missing. Downloading the latest App Installer..." -ForegroundColor Yellow
+    
+    # Temporarily hide the PowerShell progress bar, which drastically speeds up web downloads
+    $OriginalProgress = $ProgressPreference
+    $ProgressPreference = 'SilentlyContinue' 
+    
+    $WingetUrl = "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
+    $WingetTemp = Join-Path $env:TEMP "winget_installer.msixbundle"
+    
+    try {
+        # Download the package
+        Invoke-WebRequest -Uri $WingetUrl -OutFile $WingetTemp -UseBasicParsing
+        
+        Write-Host "Installing winget..." -ForegroundColor Cyan
+        Add-AppxPackage -Path $WingetTemp
+        
+        # Cleanup the installer file
+        Remove-Item -Path $WingetTemp -Force
+        
+        # Restore the progress bar preference
+        $ProgressPreference = $OriginalProgress
+        
+        # Refresh the environment path so PowerShell knows winget exists right now
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+        
+        if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
+            Write-Host "Winget was installed, but Windows needs a moment to register it. Please run this shortcut again." -ForegroundColor Red
+            Pause
+            exit
+        }
+        Write-Host "winget installed successfully!" -ForegroundColor Green
+        
+    } catch {
+        Write-Host "`nCRITICAL ERROR: Failed to install winget." -ForegroundColor Red
+        Write-Host "Error details: $_" -ForegroundColor Red
+        Write-Host "You may need to manually update the 'App Installer' from the Microsoft Store." -ForegroundColor Red
+        Pause
+        exit
+    }
+} else {
+    Write-Host "winget is already installed." -ForegroundColor Green
+}
+
 # --- 1. Git Installation Check ---
 Write-Host "Verifying prerequisites..." -ForegroundColor Cyan
 if (-not (Get-Command "git" -ErrorAction SilentlyContinue)) {
